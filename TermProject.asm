@@ -10,9 +10,12 @@
 .text
 	jal rng_main		# initialize random numbers
 	jal DrawBoard		# draw the board
+	jal CardFlip_main 
 	
 	li $v0, SysExit		# service call: exit 
 	syscall			# exit the program
 
 .include "RandomNumberGen.asm"
 .include "Graphics.asm"
+.include "CardFlip.asm"
+.include "UnmatchedCounter.asm"

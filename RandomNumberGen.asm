@@ -1,12 +1,17 @@
+#	CS2340 Term Project - Random Factor Generator 
+#
+#	Author: Hatice Kahraman
+#	Date: 09-25-2024 
+#	Location: UTD
+#
+
 .data
     seed:        .word 12345          # Seed for random number generator
     factor1:     .word 0:8            # Array to hold 8 factor1 values
     factor2:     .word 0:8            # Array to hold 8 factor2 values
     products:    .word 0:8            # Array to hold 8 products
-    cellPairs:	 .byte 0:16	      # Array to hold the cells which correspond to a factor/product pair. 16 bytes: [factor0,product0,factor1,product1]...
+    cellPairs:	 .byte 0:16	      # Array to hold the cells which correspond to a factor/product pair. 16 bytes: [factor0,product0,factor1,product1]
     boardNums:   .byte 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 # These represent cell positions in left-right, top-bottom order
-    equation_msg: .asciiz "Equation: "  # Debugging message for equations
-    product_msg:  .asciiz " Product: "  # Debugging message for products
     multiply_msg: .asciiz " x "         # Multiply sign string
     newline:     .asciiz "\n"          # Newline character
 
@@ -18,8 +23,8 @@ rng_main:
     sw $ra, 0($sp)		# Store the return address to the stack
     
     # Set up the random number generator with a seed
-    li $a0, 0                  # Pseudorandom generator ID (any int works)
-    lw $a1, seed               # Load the seed
+    li $a0, 0                   # Pseudorandom generator ID 
+    lw $a1, seed                # Load the seed
     li $v0, SysRandInt          # Syscall for setting random seed
     syscall
 
@@ -28,9 +33,6 @@ rng_main:
     
     # Shuffle the board
     jal ShuffleBoard
-
-    # Print all generated cards (equations and products)
-    jal PrintAllCards
 
     lw $ra, 0($sp)		# Restore the return address from the stack
     addi $sp, $sp, 4		# Pop the stack
@@ -43,14 +45,14 @@ GenerateRandomEquations:
 
 generate_loop:
     # Generate random factor1
-    li $v0, SysRandIntRange      # Syscall for generating random number in range
+    li $v0, SysRandIntRange     # Syscall for generating random number in range
     li $a0, 0                   # Random generator ID
     syscall                     # Random number now in $a0
     addi $a0, $a0, 1            # Adjust range to 1-12
     sw $a0, factor1($t0)        # Store in factor1 array
 
     # Generate random factor2
-    li $v0, SysRandIntRange      # Syscall for generating random number in range
+    li $v0, SysRandIntRange     # Syscall for generating random number in range
     li $a0, 0                   # Random generator ID
     syscall
     addi $a0, $a0, 1            # Adjust range to 1-12
@@ -75,12 +77,12 @@ ShuffleBoard:
             
 shuffle_start:
     li $t1, 16			# There are 16 cells in the board
-    sub $t1, $t1, $t0		# int upperLimit = 16 - i (because we're "popping" a random board element each iteration)
+    sub $t1, $t1, $t0		# int upperLimit = 16 - i (bc we're popping a random board element each iteration)
     
     li $v0, SysRandIntRange	# Prepare to generate a random number
     li $a0, 0			# Set the random id argument to 0
     move $a1, $t1		# Set the upper limit to upperLimit
-    syscall			# Create a random number. The result represents an index of boardNums
+    syscall			# Create a random number. Result represents an index of boardNums
     
     add $t3, $t2, $a0		# byte *currBoardNum = boardNums + index
     lb $t3, 0($t3)		# Get the currBoardNum
@@ -102,48 +104,4 @@ remove_start:
     
     jr $ra			# Return
 
-# Print all 16 cards (8 equations and 8 products)
-PrintAllCards:
-    li $t0, 0                   # Counter (0 to 7 for 8 cards)
 
-print_loop:
-    # Print equation "Equation: factor1 x factor2 Product: product"
-    la $a0, equation_msg        # Load equation debug message
-    li $v0, SysPrintString      # Syscall to print string
-    syscall
-
-    lw $t1, factor1($t0)        # Load factor1
-    move $a0, $t1               # Move factor1 to $a0
-    li $v0, SysPrintInt         # Syscall to print integer
-    syscall
-
-    # Print " x "
-    la $a0, multiply_msg        # Load " x " string
-    li $v0, SysPrintString      # Syscall to print string
-    syscall
-
-    lw $t2, factor2($t0)        # Load factor2
-    move $a0, $t2               # Move factor2 to $a0
-    li $v0, SysPrintInt         # Syscall to print integer
-    syscall
-
-    # Print " Product: "
-    la $a0, product_msg         # Load product debug message
-    li $v0, SysPrintString      # Syscall to print string
-    syscall
-
-    lw $t3, products($t0)       # Load product
-    move $a0, $t3               # Move product to $a0
-    li $v0, SysPrintInt         # Syscall to print integer
-    syscall
-
-    # Print newline to move to the next line
-    la $a0, newline
-    li $v0, SysPrintString      # Syscall to print newline
-    syscall
-
-    # Increment counter and loop for 8 equations/products
-    addi $t0, $t0, 4
-    blt $t0, 32, print_loop
-
-    jr $ra                      # Return from function
