@@ -29,6 +29,22 @@
     EIGHT_CHAR:	.byte 2,5,5,2,5,5,2
     NINE_CHAR:	.byte 2,5,5,3,1,5,2
     CROSS_CHAR:	.byte 0,0,5,2,5,0,0
+    A_CHAR:	.byte 2,5,5,7,5,5,5
+    B_CHAR:	.byte 6,5,5,6,5,5,6
+    C_CHAR:	.byte 3,4,4,4,4,4,3
+    D_CHAR:	.byte 6,5,5,5,5,5,6
+    E_CHAR:	.byte 7,4,4,7,4,4,7
+    F_CHAR:	.byte 7,4,4,6,4,4,4
+    G_CHAR:	.byte 7,4,4,5,5,5,7
+    H_CHAR:	.byte 5,5,5,7,5,5,5
+    I_CHAR:	.byte 7,2,2,2,2,2,7
+    J_CHAR:	.byte 7,2,2,2,2,2,4
+    K_CHAR:	.byte 5,5,5,6,5,5,5
+    L_CHAR:	.byte 4,4,4,4,4,4,7
+    M_CHAR:	.byte 5,7,5,5,5,5,5
+    N_CHAR:	.byte 7,5,5,5,5,5,5
+    O_CHAR:	.byte 7,5,5,5,5,5,7
+    P_CHAR:	.byte 7,5,5,7,4,4,4
     
     dispAddr:	.word 0x10000000
 
@@ -78,7 +94,7 @@ post_updateline:
     jr $ra			# Return
     
 DrawNumber:			# a0 = (int) x-coordinate (topleft); a1 = (int) y-coordinate (topleft); a2 = (int) number (for our intents and purposes, "*" is a number (10))
-    addi $sp, $sp, -24		# Give the stack 4 bytes to work with
+    addi $sp, $sp, -24		# Give the stack 24 bytes to work with
     sw $s4, 20($sp)		# Store s4 in the stack
     sw $s3, 16($sp)		# Store s3 in the stack
     sw $s2, 12($sp)		# Store s2 in the stack
@@ -138,11 +154,83 @@ end_num_loop:
     lw $s4, 20($sp)		# Pop s4 from the stack
     addi $sp, $sp, 24		# Pop the stack
     jr $ra			# Return
+    
+WriteToCell:			# a0 = cell number (0 for top left, 15 for bottom right), a1-a3&v0-v1 = chars (-1 if no char)
+    addi $sp, $sp, -28		# Give the stack 28 bytes to work with
+    sb $v1, 24($sp)		# Store the fifth digit in the stack
+    sb $v0, 23($sp)		# Store the fourth digit in the stack
+    sb $a3, 22($sp)		# Store the third digit in the stack
+    sb $a2, 21($sp)		# Store the second digit in the stack
+    sb $a1, 20($sp)		# Store the first digit in the stack
+    sw $s3, 16($sp)		# Store s3 in the stack
+    sw $s2, 12($sp)		# Store s2 in the stack
+    sw $s1, 8($sp)		# Store s1 in the stack
+    sw $s0, 4($sp)		# Store s0 in the stack
+    sw $ra, 0($sp)		# Store the return address to the stack
+    
+    # First of all, how many chars are we working with?
+    li $t0, 0			# i = 0
+    beq $a1, -1, calc_spaces	# We have no chars (ideally should never happen). Leave.
+    addi $t0, $t0, 1		# i++
+    beq $a2, -1, calc_spaces	# We only have one char. Leave.
+    addi $t0, $t0, 1		# i++
+    beq $a3, -1, calc_spaces	# We have two chars. Leave.
+    addi $t0, $t0, 1		# i++
+    beq $v0, -1, calc_spaces	# We have three chars. Leave.
+    addi $t0, $t0, 1		# i++
+    beq $v1, -1, calc_spaces	# We have four chars. Leave.
+    addi $t0, $t0, 1		# i++ (if we made it here, we have five chars)
+calc_spaces:
+    # Determine where the first digit should be drawn
+    sll $t1, $t0, 1		# t1 = numChars * 2
+    li $t2, 12			# t2 = 12
+    sub $t1, $t2, $t1		# t1 = 12 - 2*numChars (X COORDINATE OF WHERE TO DRAW THE FIRST DIGIT)
+    
+    # Now find the top left corner of the cell
+    andi $t2, $a0, 3		# t2 = cellNumber % 4. This represents the "xIndex" of the cell
+    srl $t3, $a0, 2		# t3 = cellNumber / 4. This represents the "yIndex" of the cell
+    mul $t2, $t2, 22		# xIndex *= 22 (account for the cell widths) 
+    addi $t2, $t2, 20		# xIndex += 20 (account for the grid offset) (X_UNIT)
+    mul $t3, $t3, 22		# yIndex *= 22 (account for the cell heights) 
+    addi $t3, $t3, 20		# yIndex += 20 (account for the grid offset) (Y_UNIT)
+    
+    # Now find the absolute position for the top left corner of the first digit
+    add $t2, $t2, $t1		# digitX = X_UNIT + digitX
+    addi $t3, $t3, 8		# digitY = Y_UNIT + 8 (so that the digit prints in the middle of the cell)
+   
+    # Save our variables
+    move $s0, $t0		# s0 holds the number of digits we have
+    move $s1, $t2		# s1 holds the x coordinate of the first digit
+    move $s2, $t3		# s2 holds the y coordinate of all the digits
+      
+    # Start the print loop
+    li $s3, 0			# j = 0
+digit_loop:
+    # Which digit am I printing again? Check in stack[20 + j]
+    addi $t0, $s3, 20		# t0 = 20 + j
+    add $t0, $t0, $sp		# t0 points to stack[20+j]
+    lb $a2, 0($t0)		# a2 reads stack[20+j] (the "jth" character)
+    move $a0, $s1		# Set the x coordinate argument
+    move $a1, $s2		# Set the y coordinate argument
+    jal DrawNumber		# Draw the character
+
+    addi $s3, $s3, 1		# j++
+    addi $s1, $s1, 4		# digitX += 4
+    slt $t0, $s3, $s0		# Is j < numChars?
+    bnez $t0, digit_loop	# Loop if so
+    
+    lw $ra, 0($sp)		# Restore the return address from the stack
+    lw $s0, 4($sp)		# Pop s0 from the stack
+    lw $s1, 8($sp)		# Pop s1 from the stack
+    lw $s2, 12($sp)		# Pop s2 from the stack
+    lw $s3, 16($sp)		# Pop s3 from the stack
+    addi $sp, $sp, 28		# Pop the stack
+    jr $ra			# Return
 
 InitializeGrid:
     # HORIZ: (20,20), (20,40), (20,60), (20,80), (20,100)
     # VERT: (20,20), (40,20), (60,20), (80,20), (100,20)
-    # ..Except the lines should increment by 21, not by 20, to account for the borders
+    # ..Except the lines should increment by 22, not by 20, to account for the borders
     addi $sp, $sp, -4		# Give the stack 4 bytes to work with
     sw $s0, 4($sp)		# Store s0 in the stack
     sw $ra, 0($sp)		# Store the return address to the stack
@@ -150,16 +238,16 @@ InitializeGrid:
     li $s0, 0			# i = 0
 grid_loop:
     li $a0, 20			# Start the x-coordinate of the line at 20
-    mul $a1, $s0, 21		# Set the y-coordinate of the line at i*21
+    mul $a1, $s0, 22		# Set the y-coordinate of the line at i*22
     add $a1, $a1, 20		# Add another 20 units to the y
-    li $a2, 85			# Make the line 85 units long (4 cells * 20 units/cell + 5 borders * 1 unit/border)
+    li $a2, 89			# Make the line 85 units long (4 cells * 21 units/cell + 5 borders * 1 unit/border)
     li $a3, 0			# Make the line horizontal
     jal DrawLine		# Draw the line
     
     li $a1, 20			# Start the y-coordinate of the line at 20
-    mul $a0, $s0, 21		# Set the x-coordinate of the line at i*21
+    mul $a0, $s0, 22		# Set the x-coordinate of the line at i*22
     add $a0, $a0, 20		# Add another 20 units to the x
-    li $a2, 85			# Make the line 85 units long (4 cells * 20 units/cell + 5 borders * 1 unit/border)
+    li $a2, 89			# Make the line 85 units long (4 cells * 21 units/cell + 5 borders * 1 unit/border)
     li $a3, 1			# Make the line vertical
     jal DrawLine		# Draw the line
 
@@ -169,59 +257,28 @@ grid_loop:
     
     # TESTTESTTEST!!!!!!!
     li $a0, 0
-    li $a1, 0
-    li $a2, 0
-    jal DrawNumber
+    li $a1, 11
+    li $a2, -1
+    li $a3, -1
+    li $v0, -1
+    li $v1, -1
+    jal WriteToCell
     
-    li $a0, 10
-    li $a1, 0
-    li $a2, 1
-    jal DrawNumber
+    li $a0, 1
+    li $a1, 12
+    li $a2, 13
+    li $a3, -1
+    li $v0, -1
+    li $v1, -1
+    jal WriteToCell
     
-    li $a0, 20
-    li $a1, 0
-    li $a2, 2
-    jal DrawNumber
-    
-    li $a0, 30
-    li $a1, 0
-    li $a2, 3
-    jal DrawNumber
-    
-    li $a0, 40
-    li $a1, 0
-    li $a2, 4
-    jal DrawNumber
-    
-    li $a0, 50
-    li $a1, 0
-    li $a2, 5
-    jal DrawNumber
-    
-    li $a0, 60
-    li $a1, 0
-    li $a2, 6
-    jal DrawNumber
-    
-    li $a0, 70
-    li $a1, 0
-    li $a2, 7
-    jal DrawNumber
-    
-    li $a0, 80
-    li $a1, 0
-    li $a2, 8
-    jal DrawNumber
-    
-    li $a0, 90
-    li $a1, 0
-    li $a2, 9
-    jal DrawNumber
-    
-    li $a0, 100
-    li $a1, 0
-    li $a2, 10
-    jal DrawNumber
+    li $a0, 2
+    li $a1, 14
+    li $a2, 15
+    li $a3, 16
+    li $v0, -1
+    li $v1, -1
+    jal WriteToCell
     # ENDTEST!!!!!!!!!!!!
     
     lw $ra, 0($sp)		# Restore the return address from the stack
