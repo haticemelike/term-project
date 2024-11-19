@@ -35,7 +35,7 @@
 .text
 
 SetUnit:			# a0 = (int) x-coordinate; a1 = (int) y-coordinate; a2 = (bool) on
-    mul $t0, $a1, 128		# y:0 starts at 0; y:1 starts at 128; y:2 starts at 256...
+    sll $t0, $a1, 7		# y:0 starts at 0; y:1 starts at 128; y:2 starts at 256...
     add $t0, $t0, $a0		# Add the x-coordinate to find the unit index that corresponds to this position
     sll $t0, $t0, 2		# Multiply the index by 4 to make this word-friendly
     
@@ -79,7 +79,7 @@ post_updateline:
     
 DrawNumber:			# a0 = (int) x-coordinate (topleft); a1 = (int) y-coordinate (topleft); a2 = (int) number (for our intents and purposes, "*" is a number (10))
     addi $sp, $sp, -24		# Give the stack 4 bytes to work with
-    sw $s3, 20($sp)		# Store s4 in the stack
+    sw $s4, 20($sp)		# Store s4 in the stack
     sw $s3, 16($sp)		# Store s3 in the stack
     sw $s2, 12($sp)		# Store s2 in the stack
     sw $s1, 8($sp)		# Store s1 in the stack
