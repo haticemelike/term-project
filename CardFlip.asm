@@ -43,7 +43,7 @@ game_loop:
     addi $s1, $v0, -1      	# Store second card index in $s1
 
     jal RevealCards		# Reveal selected cards
-    jal DrawBoard		# Draw board with the revealed cards
+    jal DrawBoardCLI		# Draw board with the revealed cards
     jal DisplayCardsLeft	# Update the cards left count
     jal CheckMatch		# Check if cards are a match
     beq $v0, 1, handle_match  	# If match, go to handle_match
@@ -69,7 +69,7 @@ handle_match:
     j game_loop
 
 game_end:
-    jal DrawBoard            	# Draw the final board
+    jal DrawBoardCLI           	# Draw the final board
     jal DisplayCardsLeft     	# Display final cards left count (should be 0)
     la $a0, all_matched_msg
     li $v0, SysPrintString
