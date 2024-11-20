@@ -45,6 +45,7 @@
     N_CHAR:	.byte 7,5,5,5,5,5,5
     O_CHAR:	.byte 7,5,5,5,5,5,7
     P_CHAR:	.byte 7,5,5,7,4,4,4
+    NULL_CHAR:	.byte -1,-1,-1,-1,-1,-1,-1	# 255 shall just have the special meaning of clearing the bitmap display
     
     dispAddr:	.word 0x10000000
 
@@ -113,6 +114,22 @@ DrawNumber:			# a0 = (int) x-coordinate (topleft); a1 = (int) y-coordinate (topl
 num_loop:
     lb $s4, 0($s2)		# Retrieve the current row's bitmap data
     
+    bne $s4, -1, check_left	# If the bitmap data is not -1, then interpret this as bits which set bits on
+    move $a0, $s0		# Get the first X value in the row
+    move $a1, $s1		# Get the Y value
+    li $a2, 0			# Turn this unit OFF
+    jal SetUnit			# Set the unit
+    addi $a0, $s0, 1		# Get the second X value
+    move $a1, $s1		# Get Y
+    li $a2, 0			# Turn this OFF
+    jal SetUnit			# Set the unit
+    addi $a0, $s0, 2		# Get the third X value
+    move $a1, $s1		# Get Y
+    li $a2, 0			# Turn this OFF
+    jal SetUnit			# Set the unit
+    j end_num_loop		# Skip to the end of the loop
+    
+check_left:
     andi $t3, $s4, 4		# Check out the leftmost unit in this row
     beqz $t3, check_middle	# If the leftmost unit is OFF, then skip this code
     
@@ -226,12 +243,112 @@ digit_loop:
     lw $s3, 16($sp)		# Pop s3 from the stack
     addi $sp, $sp, 28		# Pop the stack
     jr $ra			# Return
+    
+ClearCell:			# a0 = cell number (0 for top left, 15 for bottom right)
+    addi $sp, $sp, -8		# Give the stack 8 bytes to work with
+    sw $a0, 4($sp)		# Store the cell number in the stack
+    sw $ra, 0($sp)		# Store the return address in the stack
+    
+    li $a1, 27			# 27 maps to the null character (a 3x7 black square)
+    li $a2, 27			# Set the second character
+    li $a3, 27			# Set the third character
+    li $v0, 27			# Set the fourth character
+    li $v1, 27			# Set the fifth character
+    jal WriteToCell		# Clear this cell
+    
+    lw $a0, 4($sp)		# Restore the cell number from the stack
+    li $a1, 27			# 27 maps to the null character (a 3x7 black square)
+    li $a2, 27			# Set the second character
+    li $a3, 27			# Set the third character
+    li $v0, 27			# Set the fourth character
+    li $v1, -1			# No fifth character (so that this offsets the digits slightly)
+    jal WriteToCell		# Clear this cell
+    
+    lw $ra, 0($sp)		# Restore the return address from the stack
+    addi $sp, $sp, 8		# Pop the stack
+    jr $ra			# Return
+    
+WriteMathToCell:		# a0 = cell number; a1 = number to print (literal number); a2 = second number (-1 if no second number) (renders as "a1*a2" if set)
+    # numDigits = 1 by default (always assume we're printing at least one digit)
+    # If a1 > 9, numDigits++ (two digits)
+    # If a2 != -1 numDigits += 2 (one digit for the multiplication symbol, and one for the actual digit
+    # If a2 > 9, numDigits++ (two digits)
+    
+    # numDigits = 1
+    #
+    # IF a1 >= 10,
+    #	numDigits++
+    # 	STACK[0] = a1 / 10
+    #	STACK[1] = a1 - 10
+    # ELSE
+    #	STACK[0] = a1
+    #
+    # IF a2 != -1,
+    #	STACK[numDigits] = 'X'
+    #   numDigits++
+    #   IF a2 >= 10,
+    #	  STACK[numDigits] = a2 / 10
+    #	  STACK[numDigits+1] = a2 - 10
+    #	ELSE
+    #	  STACK[numDigits] = a2
+    
+    addi $sp, $sp, -12		# Give the stack 12 bytes to work with
+    sw $ra, 0($sp)		# Store the return address in the stack
+    li $t0, -1			# Set t0 = -1
+    sb $t0, 4($sp)		# STACK[0] = -1
+    sb $t0, 5($sp)		# STACK[1] = -1
+    sb $t0, 6($sp)		# STACK[2] = -1
+    sb $t0, 7($sp)		# STACK[3] = -1
+    sb $t0, 8($sp)		# STACK[4] = -1
+    
+    li $t1, 1			# numDigits = 1
+    
+    blt $a1, 10, one_digit_A	# Is the first number one or two digits?
+    div $t0, $a1, 10		# The first number is two digits! Get a1 / 10 (to get the first digit)
+    sb $t0, 4($sp)		# STACK[0] = a1 / 10
+    subi $t0, $a1, 10		# Get a1 - 10 (to get the second digit)
+    sb $t0, 5($sp)		# STACK[1] = a1 - 10
+    addi $t1, $t1, 1		# numDigits++
+    j check_second_digit	# Jump to check the second digit
+    
+one_digit_A:
+    sb $a1, 4($sp)		# The first number is one digit! STACK[0] = a1
+    
+check_second_digit:
+    beq $a2, -1, stop_digits	# Do we even have a second number? Skip this code if we don't
+    add $t1, $t1, 4		# numDigits += 4 (not in the pseudocode, but it aligns with the fact that the character stack data starts at index 4
+    add $t1, $t1, $sp		# numDigits += $sp (just to point to STACK[numDigits]
+    li $t0, 10			# t0 = multiplication symbol
+    sb $t0, 0($t1)		# STACK[numDigits] = multiplication symbol
+    addi $t1, $t1, 1		# numDigits++
+    
+    blt $a2, 10, one_digit_B	# Is the second number one or two digits?
+    div $t0, $a2, 10		# The second number is two digits! Get a2 / 10 (to get the first digit)
+    sb $t0, 0($t1)		# STACK[numDigits] = a2 / 10
+    subi $t0, $a2, 10		# Get a2 - 10 (to get the second digit)
+    sb $t0, 1($t1)		# STACK[numDigits+1] = a2 - 10
+    j stop_digits		# Jump to the printing code
+    
+one_digit_B:
+    sb $a2, 0($t1)		# STACK[numDigits] = a2
+    
+stop_digits:
+    lb $a1, 4($sp)		# Load a1 from STACK[0]
+    lb $a2, 5($sp)		# Load a2 from STACK[1]
+    lb $a3, 6($sp)		# Load a3 from STACK[2]
+    lb $v0, 7($sp)		# Load v0 from STACK[3]
+    lb $v1, 8($sp)		# Load v1 from STACK[4]
+    jal WriteToCell		# Write the expression to the cell
+    
+    lw $ra, 0($sp)		# Restore the return address from the stack
+    addi $sp, $sp, 12		# Restore the stack
+    jr $ra			# Return
 
 InitializeGrid:
     # HORIZ: (20,20), (20,40), (20,60), (20,80), (20,100)
     # VERT: (20,20), (40,20), (60,20), (80,20), (100,20)
     # ..Except the lines should increment by 22, not by 20, to account for the borders
-    addi $sp, $sp, -4		# Give the stack 4 bytes to work with
+    addi $sp, $sp, -8		# Give the stack 8 bytes to work with
     sw $s0, 4($sp)		# Store s0 in the stack
     sw $ra, 0($sp)		# Store the return address to the stack
     
@@ -255,31 +372,63 @@ grid_loop:
     slti $t0, $s0, 5		# Is i < 5?
     bnez $t0, grid_loop		# If so, then repeat the loop
     
-    # TESTTESTTEST!!!!!!!
+    # Assign letters to the cells
+    li $s0, 0
+cell_letter_loop:
+    move $a0, $s0		# Work with cell number i
+    addi $a1, $s0, 11		# Write i + 11 ('A', 'B', 'C'...)
+    li $a2, -1			# No second character needed
+    li $s3, -1			# No third character needed
+    li $v0, -1			# No fourth character needed
+    li $v1, -1			# No fifth character needed
+    jal WriteToCell		# Write an identifying letter to the cell
+
+    addi $s0, $s0, 1		# i++
+    slti $t0, $s0, 16		# is i < 15?
+    bnez $t0, cell_letter_loop	# If so, then repeat the loop
+    
+    #TEST
     li $a0, 0
+    jal ClearCell
+    
+    li $a0, 0
+    li $a1, 12
+    li $a2, 11
+    jal WriteMathToCell
+    
+    li $a0, 6
+    jal ClearCell
+    
+    li $a0, 6
+    li $a1, 4
+    li $a2, 10
+    jal WriteMathToCell
+    
+    li $a0, 9
+    jal ClearCell
+    
+    li $a0, 9
+    li $a1, 6
+    li $a2, 2
+    jal WriteMathToCell
+    
+    li $a0, 10
+    jal ClearCell
+    
+    li $a0, 10
+    li $a1, 3
+    li $a2, -1
+    jal WriteMathToCell
+    
+    li $a0, 15
+    jal ClearCell
+    
+    li $a0, 15
     li $a1, 11
     li $a2, -1
-    li $a3, -1
-    li $v0, -1
-    li $v1, -1
-    jal WriteToCell
+    jal WriteMathToCell
     
-    li $a0, 1
-    li $a1, 12
-    li $a2, 13
-    li $a3, -1
-    li $v0, -1
-    li $v1, -1
-    jal WriteToCell
-    
-    li $a0, 2
-    li $a1, 14
-    li $a2, 15
-    li $a3, 16
-    li $v0, -1
-    li $v1, -1
-    jal WriteToCell
-    # ENDTEST!!!!!!!!!!!!
+    #ENDTEST
     
     lw $ra, 0($sp)		# Restore the return address from the stack
     lw $s0, 4($sp)		# Pop s0 from the stack
