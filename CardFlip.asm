@@ -7,8 +7,9 @@
 
 .data
 card_states:    .byte 0:16      # Array to track card states: 0 = hidden, 1 = revealed
-user_prompt1:   .asciiz "Enter the first card number to flip (1-16): "
-user_prompt2:   .asciiz "Enter the second card number to flip (1-16): "
+user_prompt1:   .asciiz "Enter the first card letter to flip (A-P): "
+user_prompt2:   .asciiz "Enter the second card letter to flip (A-P): "
+wrong_card_msg:	.asciiz "Please select a different pair of cards.\n"
 match_msg:      .asciiz "It's a match!\n"
 no_match_msg:   .asciiz "Not a match.\n"
 all_matched_msg: .asciiz "Congratulations! All pairs matched!\n"
@@ -19,31 +20,71 @@ cards_left: .word 16  		# Total number of cards
 .globl CardFlip_main
 
 CardFlip_main:
+    addi $sp, $sp, -4		# Give the stack 4 bytes to work with
+    sw $ra, 0($sp)		# Store the return address to the stack
+
     li $t0, 0              	# Initialize matched pairs counter ($t0 - matched_pairs counter)
     lw $s2, cards_left     	# Load total number of cards ($s2 - cards_left counter)
 
 game_loop:
     # Display the number of cards left
-    jal DisplayCardsLeft
+    jal DisplayCardsLeft	# Call the display method
     
     # Prompt user for first card to flip
-    la $a0, user_prompt1
-    li $v0, SysPrintString
-    syscall
-    li $v0, SysReadInt
-    syscall
-    addi $s0, $v0, -1      	# Store first card index in $s0
+    la $a0, user_prompt1	# Load the first user prompt string
+    li $v0, SysPrintString	# Prepare to print a string
+    syscall			# Print the string
+    li $v0, SysReadChar		# Expect a char from the keyboard (a cell ID)
+    syscall			# Read the char
+    blt $v0, 97, upper1		# Did the user input an uppercase or a lowercase letter?
+    addi $s0, $v0, -97		# The user entered a lowercase letter. Convert that to a cell index #.
+    j end_input1		# Skip past the uppercase code.
+    
+upper1:
+    addi $s0, $v0, -65      	# The user entered an uppercase letter. Convert that to a cell index #.
+    
+end_input1:
+    la $a0, newline		# Load the new line string
+    li $v0, SysPrintString	# Prepare to print a string
+    syscall			# Make a new line
 
     # Prompt user for second card to flip
-    la $a0, user_prompt2
-    li $v0, SysPrintString
-    syscall
-    li $v0, SysReadInt
-    syscall
-    addi $s1, $v0, -1      	# Store second card index in $s1
+    la $a0, user_prompt2	# Load the second user prompt string
+    li $v0, SysPrintString	# Prepare to print a string
+    syscall			# Print the string
+    li $v0, SysReadChar		# Expect a char from the keyboard (a cell ID)
+    syscall			# Read the char
+    blt $v0, 97, upper2		# Did the user input an uppercase or a lowercase letter?
+    addi $s1, $v0, -97		# The user entered a lowercase letter. Convert that to a cell index #.
+    j end_input2		# Skip past the uppercase code.
+    
+upper2:
+    addi $s1, $v0, -65      	# The user entered an uppercase letter. Convert that to a cell index #.
+    
+end_input2:
+    la $a0, newline		# Load the new line string
+    li $v0, SysPrintString	# Prepare to print a string
+    syscall			# Make a new line
+    
+    # The user can't input the same card twice, or a card that's already revealed, or a card that doesn't exist
+    bgt $s0, 15, invalid_inputs	# The first card doesn't exist
+    bgt $s1, 15, invalid_inputs	# The second card doesn't exist
+    beq $s0, $s1, invalid_inputs# The user inputted the same card
+    lb $t3, card_states($s0)	# Load the first card's state
+    beq $t3, 1, invalid_inputs	# The first card had already been revealed
+    lb $t3, card_states($s1)	# Load the second card's state
+    beq $t3, 1, invalid_inputs	# The second card had already been revealed
+    j valid_inputs		# Otherwise, the user inputted valid cards
+    
+invalid_inputs:
+    la $a0, wrong_card_msg	# Prompt the user to select different cards
+    li $v0, SysPrintString	# Prepare to print a string
+    syscall			# Print the string
+    j game_loop			# Have the user pick different cards
 
+valid_inputs:
     jal RevealCards		# Reveal selected cards
-    jal DrawBoardCLI		# Draw board with the revealed cards
+    jal UpdateBoard		# Draw board with the revealed cards
     jal DisplayCardsLeft	# Update the cards left count
     jal CheckMatch		# Check if cards are a match
     beq $v0, 1, handle_match  	# If match, go to handle_match
@@ -54,6 +95,7 @@ game_loop:
     syscall
     jal Delay                	# Short delay to show the flipped cards
     jal HideCards
+    jal UpdateBoard		# Draw board with the hidden cards
     j game_loop              	# Loop back to play again
 
 handle_match:
@@ -69,11 +111,14 @@ handle_match:
     j game_loop
 
 game_end:
-    jal DrawBoardCLI           	# Draw the final board
+    jal UpdateBoard           	# Draw the final board
     jal DisplayCardsLeft     	# Display final cards left count (should be 0)
     la $a0, all_matched_msg
     li $v0, SysPrintString
     syscall
+    
+    lw $ra, 0($sp)		# Restore the return address from the stack
+    addi $sp, $sp, 4		# Restore the stack
     jr $ra                   	# End game and return
            
 

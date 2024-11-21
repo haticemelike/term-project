@@ -9,8 +9,8 @@
 
 .text
 	jal rng_main		# initialize random numbers
-	jal InitializeGrid	# draw the board (BITMAP)
-	jal DrawBoardCLI	# draw the board
+	jal InitializeGrid	# draw the board gridlines
+	jal UpdateBoard		# assign letters to the cells
 	jal CardFlip_main 	# handle the card flipping logic
 	
 	li $v0, SysExit		# service call: exit 

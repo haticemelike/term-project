@@ -276,6 +276,13 @@ WriteMathToCell:		# a0 = cell number; a1 = number to print (literal number); a2 
     
     # numDigits = 1
     #
+    # IF a1 >= 100,
+    #   (I already know a1 must be the only number to print)
+    #   STACK[0] = a1 / 100
+    #   a1 -= 100
+    #   STACK[1] = a1 / 10
+    #   STACK[2] = a1 - 10
+    #   ...jump straight to printing
     # IF a1 >= 10,
     #	numDigits++
     # 	STACK[0] = a1 / 10
@@ -303,11 +310,25 @@ WriteMathToCell:		# a0 = cell number; a1 = number to print (literal number); a2 
     
     li $t1, 1			# numDigits = 1
     
+    blt $a1, 100, not_three	# Is the first number three digits?
+    div $t0, $a1, 100		# The first number is three digits! Get a1 / 100 (first digit)
+    sb $t0, 4($sp)		# STACK[0] = a1 / 100
+    mul $t0, $t0, 100		# This basically just gets the hundreds place (t0)
+    sub $a1, $a1, $t0		# a1 -= t0
+    div $t0, $a1, 10		# Get a1 / 10 (second digit)
+    sb $t0, 5($sp)		# STACK[1] = a1 / 10
+    mul $t0, $t0, 10		# Get the tens place (t0)
+    sub $t0, $a1, $t0		# Get a1 - t0 (for the third digit)
+    sb $t0, 6($sp)		# STACK[2] = a1 - t0
+    j stop_digits		# Jump to the printing code
+    
+not_three:
     blt $a1, 10, one_digit_A	# Is the first number one or two digits?
     div $t0, $a1, 10		# The first number is two digits! Get a1 / 10 (to get the first digit)
     sb $t0, 4($sp)		# STACK[0] = a1 / 10
-    subi $t0, $a1, 10		# Get a1 - 10 (to get the second digit)
-    sb $t0, 5($sp)		# STACK[1] = a1 - 10
+    mul $t0, $t0, 10		# Get the tens place (t0)
+    sub $t0, $a1, $t0		# Get a1 - t0 (to get the second digit)
+    sb $t0, 5($sp)		# STACK[1] = a1 - t0
     addi $t1, $t1, 1		# numDigits++
     j check_second_digit	# Jump to check the second digit
     
@@ -372,71 +393,14 @@ grid_loop:
     slti $t0, $s0, 5		# Is i < 5?
     bnez $t0, grid_loop		# If so, then repeat the loop
     
-    # Assign letters to the cells
-    li $s0, 0
-cell_letter_loop:
-    move $a0, $s0		# Work with cell number i
-    addi $a1, $s0, 11		# Write i + 11 ('A', 'B', 'C'...)
-    li $a2, -1			# No second character needed
-    li $s3, -1			# No third character needed
-    li $v0, -1			# No fourth character needed
-    li $v1, -1			# No fifth character needed
-    jal WriteToCell		# Write an identifying letter to the cell
-
-    addi $s0, $s0, 1		# i++
-    slti $t0, $s0, 16		# is i < 15?
-    bnez $t0, cell_letter_loop	# If so, then repeat the loop
-    
-    #TEST
-    li $a0, 0
-    jal ClearCell
-    
-    li $a0, 0
-    li $a1, 12
-    li $a2, 11
-    jal WriteMathToCell
-    
-    li $a0, 6
-    jal ClearCell
-    
-    li $a0, 6
-    li $a1, 4
-    li $a2, 10
-    jal WriteMathToCell
-    
-    li $a0, 9
-    jal ClearCell
-    
-    li $a0, 9
-    li $a1, 6
-    li $a2, 2
-    jal WriteMathToCell
-    
-    li $a0, 10
-    jal ClearCell
-    
-    li $a0, 10
-    li $a1, 3
-    li $a2, -1
-    jal WriteMathToCell
-    
-    li $a0, 15
-    jal ClearCell
-    
-    li $a0, 15
-    li $a1, 11
-    li $a2, -1
-    jal WriteMathToCell
-    
-    #ENDTEST
-    
     lw $ra, 0($sp)		# Restore the return address from the stack
     lw $s0, 4($sp)		# Pop s0 from the stack
     addi $sp, $sp, 8		# Pop the stack
     jr $ra			# Return
 
-DrawBoardCLI:
-    addi $sp, $sp, -8          # Give the stack 8 bytes to work with
+UpdateBoard:
+    addi $sp, $sp, -12         # Give the stack 12 bytes to work with
+    sw $s0, 8($sp)             # Store s0 in the stack
     sw $zero, 4($sp)           # Clear one entry in the stack - this will be a column counter
     sw $ra, 0($sp)             # Store the return address to the stack
 
@@ -445,6 +409,8 @@ DrawBoardCLI:
     la $t2, cellPairs          # Load card content array (contains indexes for factors and products)
 
 draw_loop:
+    move $s0, $t0
+
     # Check if the card is revealed
     lb $t3, card_states($t0)   # Load state of the current card
     beq $t3, 0, print_front    # If state is 0, print the front (card index)
@@ -456,10 +422,24 @@ draw_loop:
     j show_product
 
 print_front:
-    # Print the card index (1-16) as a placeholder for hidden cards
-    addi $a0, $t0, 1           # Card number (1-16)
-    li $v0, SysPrintInt        # Print the index
+    # Print the card index (A-P) as a placeholder for hidden cards
+    addi $a0, $t0, 65           # Card letter (A-P)
+    li $v0, SysPrintChar        # Print the letter
     syscall
+    
+    # BITMAP    
+    move $a0, $t0
+    jal ClearCell
+    move $t0, $s0
+    move $a0, $t0
+    addi $a1, $t0, 11
+    li $a2, -1
+    li $a3, -1
+    li $v0, -1
+    li $v1, -1
+    jal WriteToCell
+    move $t0, $s0
+    
     j drawloop_end             # Skip to end of draw loop
 
 show_equation:
@@ -482,6 +462,17 @@ show_equation:
     move $a0, $t6
     li $v0, SysPrintInt
     syscall
+    
+    # BITMAP
+    move $a0, $t0
+    jal ClearCell
+    move $t0, $s0
+    move $a0, $t0
+    move $a1, $t5
+    move $a2, $t6
+    jal WriteMathToCell
+    move $t0, $s0
+    
     j drawloop_end
 
 show_product:
@@ -492,6 +483,16 @@ show_product:
     move $a0, $t5
     li $v0, SysPrintInt
     syscall
+    
+    # BITMAP
+    move $a0, $t0
+    jal ClearCell
+    move $t0, $s0
+    move $a0, $t0
+    move $a1, $t5
+    li $a2, -1
+    jal WriteMathToCell
+    move $t0, $s0
 
 drawloop_end:
     # Print vertical bar for separation
@@ -517,6 +518,7 @@ newline_end:
     blt $t0, 16, draw_loop     # Repeat the loop if i < 16
 
     lw $ra, 0($sp)             # Restore the return address from the stack
-    addi $sp, $sp, 8           # Pop the stack
+    lw $s0, 8($sp)             # Restore s0 from the stack
+    addi $sp, $sp, 12          # Pop the stack
     jr $ra                     # Return to exit program
     
