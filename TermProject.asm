@@ -8,10 +8,15 @@
 .include "SysCalls.asm"
 
 .text
+
+	jal InitTimer		# initialize timer
+	
 	jal rng_main		# initialize random numbers
 	jal InitializeGrid	# draw the board gridlines
 	jal UpdateBoard		# assign letters to the cells
 	jal CardFlip_main 	# handle the card flipping logic
+	
+	jal UpdateTimer		# update and display time 
 	
 	li $v0, SysExit		# service call: exit 
 	syscall			# exit the program
@@ -20,3 +25,4 @@
 .include "Graphics.asm"
 .include "CardFlip.asm"
 .include "Counter.asm"
+.include "Time.asm"

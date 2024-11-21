@@ -13,7 +13,7 @@ wrong_card_msg:	.asciiz "Please select a different pair of cards.\n"
 match_msg:      .asciiz "It's a match!\n"
 no_match_msg:   .asciiz "Not a match.\n"
 all_matched_msg: .asciiz "Congratulations! All pairs matched!\n"
-delay_time:     .word 2000000   # Adjust delay time as needed
+delay_time:     .word 3000000   # Adjust delay time as needed
 cards_left: .word 16  		# Total number of cards
 
 .text
@@ -29,6 +29,7 @@ CardFlip_main:
 game_loop:
     # Display the number of cards left
     jal DisplayCardsLeft	# Call the display method
+    jal UpdateTimer		# Call the display elapsed time method
     
     # Prompt user for first card to flip
     la $a0, user_prompt1	# Load the first user prompt string
@@ -94,7 +95,6 @@ invalid_inputs:
 valid_inputs:
     jal RevealCards		# Reveal selected cards
     jal UpdateBoard		# Draw board with the revealed cards
-    jal DisplayCardsLeft	# Update the cards left count
     jal CheckMatch		# Check if cards are a match
     beq $v0, 1, handle_match  	# If match, go to handle_match
 
@@ -138,6 +138,7 @@ handle_match:
 game_end:
     jal UpdateBoard           	# Draw the final board
     jal DisplayCardsLeft     	# Display final cards left count (should be 0)
+    jal UpdateTimer		# Display elapsed time
     la $a0, all_matched_msg
     li $v0, SysPrintString
     syscall
