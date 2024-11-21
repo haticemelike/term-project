@@ -1,4 +1,4 @@
-#	CS2340 Term Project - Card "Flipping" Mechanism 
+#	CS2340 Term Project - Card "Flipping" Mechanism + Restart Game Method
 #
 #	Author: Hatice Kahraman
 #	Date: 09-25-2024 
@@ -7,14 +7,15 @@
 
 .data
 card_states:    .byte 0:16      # Array to track card states: 0 = hidden, 1 = revealed
-user_prompt1:   .asciiz "Enter the first card letter to flip (A-P): "
-user_prompt2:   .asciiz "Enter the second card letter to flip (A-P): "
+user_prompt1:   .asciiz "Enter the first card letter (A-P) or '.' to restart: "
+user_prompt2:   .asciiz "Enter the second card letter (A-P) or '.' to restart: "
 wrong_card_msg:	.asciiz "Please select a different pair of cards.\n"
 match_msg:      .asciiz "It's a match!\n"
 no_match_msg:   .asciiz "Not a match.\n"
 all_matched_msg: .asciiz "Congratulations! All pairs matched!\n"
 delay_time:     .word 3000000   # Adjust delay time as needed
 cards_left: .word 16  		# Total number of cards
+restart_char: .byte '.'          # Special character for restarting
 
 .text
 .globl CardFlip_main
@@ -31,12 +32,17 @@ game_loop:
     jal DisplayCardsLeft	# Call the display method
     jal UpdateTimer		# Call the display elapsed time method
     
-    # Prompt user for first card to flip
+    # Prompt user for first card to flip or restart
     la $a0, user_prompt1	# Load the first user prompt string
     li $v0, SysPrintString	# Prepare to print a string
     syscall			# Print the string
+    
     li $v0, SysReadChar		# Expect a char from the keyboard (a cell ID)
     syscall			# Read the char
+    
+    lb $t1, restart_char        # Load restart character
+    beq $v0, $t1, restart_game  # If input is '.', restart the game
+    
     blt $v0, 97, upper1		# Did the user input an uppercase or a lowercase letter?
     addi $s0, $v0, -97		# The user entered a lowercase letter. Convert that to a cell index #.
     j end_input1		# Skip past the uppercase code.
@@ -53,8 +59,11 @@ end_input1:
     la $a0, user_prompt2	# Load the second user prompt string
     li $v0, SysPrintString	# Prepare to print a string
     syscall			# Print the string
-    li $v0, SysReadChar		# Expect a char from the keyboard (a cell ID)
-    syscall			# Read the char
+    
+    li $v0, SysReadChar
+    syscall
+    beq $v0, $t1, restart_game  # If input is '.', restart the game
+    
     blt $v0, 97, upper2		# Did the user input an uppercase or a lowercase letter?
     addi $s1, $v0, -97		# The user entered a lowercase letter. Convert that to a cell index #.
     j end_input2		# Skip past the uppercase code.
@@ -154,7 +163,10 @@ game_end:
     lw $ra, 0($sp)		# Restore the return address from the stack
     addi $sp, $sp, 4		# Restore the stack
     jr $ra                   	# End game and return
-           
+
+restart_game:
+    # Restart the game by jumping to main in TermProject.asm
+    j Main
 
 # Check if the two selected cards match
 CheckMatch:

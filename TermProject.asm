@@ -9,6 +9,7 @@
 
 .text
 
+Main:
 	jal InitTimer		# initialize timer
 	
 	jal rng_main		# initialize random numbers
