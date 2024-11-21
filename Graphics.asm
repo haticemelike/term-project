@@ -29,25 +29,43 @@
     EIGHT_CHAR:	.byte 2,5,5,2,5,5,2
     NINE_CHAR:	.byte 2,5,5,3,1,5,2
     CROSS_CHAR:	.byte 0,0,5,2,5,0,0
-    A_CHAR:	.byte 2,5,5,7,5,5,5
-    B_CHAR:	.byte 6,5,5,6,5,5,6
-    C_CHAR:	.byte 3,4,4,4,4,4,3
-    D_CHAR:	.byte 6,5,5,5,5,5,6
-    E_CHAR:	.byte 7,4,4,7,4,4,7
-    F_CHAR:	.byte 7,4,4,6,4,4,4
-    G_CHAR:	.byte 7,4,4,5,5,5,7
-    H_CHAR:	.byte 5,5,5,7,5,5,5
-    I_CHAR:	.byte 7,2,2,2,2,2,7
-    J_CHAR:	.byte 7,2,2,2,2,2,4
-    K_CHAR:	.byte 5,5,5,6,5,5,5
-    L_CHAR:	.byte 4,4,4,4,4,4,7
-    M_CHAR:	.byte 5,7,5,5,5,5,5
-    N_CHAR:	.byte 7,5,5,5,5,5,5
-    O_CHAR:	.byte 7,5,5,5,5,5,7
-    P_CHAR:	.byte 7,5,5,7,4,4,4
-    NULL_CHAR:	.byte -1,-1,-1,-1,-1,-1,-1	# 255 shall just have the special meaning of clearing the bitmap display
+    A_CHAR:	.byte 2,5,5,7,5,5,5		# 11
+    B_CHAR:	.byte 6,5,5,6,5,5,6		# 12
+    C_CHAR:	.byte 3,4,4,4,4,4,3		# 13
+    D_CHAR:	.byte 6,5,5,5,5,5,6		# 14
+    E_CHAR:	.byte 7,4,4,7,4,4,7		# 15
+    F_CHAR:	.byte 7,4,4,6,4,4,4		# 16
+    G_CHAR:	.byte 7,4,4,5,5,5,7		# 17
+    H_CHAR:	.byte 5,5,5,7,5,5,5		# 18
+    I_CHAR:	.byte 7,2,2,2,2,2,7		# 19
+    J_CHAR:	.byte 7,2,2,2,2,2,4		# 20
+    K_CHAR:	.byte 5,5,5,6,5,5,5		# 21
+    L_CHAR:	.byte 4,4,4,4,4,4,7		# 22
+    M_CHAR:	.byte 5,7,5,5,5,5,5		# 23
+    N_CHAR:	.byte 7,5,5,5,5,5,5		# 24
+    O_CHAR:	.byte 7,5,5,5,5,5,7		# 25
+    P_CHAR:	.byte 7,5,5,7,4,4,4		# 26
+    Q_CHAR:	.byte 7,5,5,5,7,2,1		# 27
+    R_CHAR:	.byte 7,5,5,6,5,5,5		# 28
+    S_CHAR:	.byte 3,4,4,2,1,1,6		# 29
+    T_CHAR:	.byte 7,2,2,2,2,2,2		# 30
+    U_CHAR:	.byte 5,5,5,5,5,5,7		# 31
+    V_CHAR:	.byte 5,5,5,5,5,5,2		# 32
+    W_CHAR:	.byte 5,5,5,5,7,7,2		# 33
+    X_CHAR:	.byte 5,5,5,2,5,5,5		# 34
+    Y_CHAR:	.byte 5,5,5,2,2,2,2		# 35
+    Z_CHAR:	.byte 7,1,1,2,4,4,7		# 36
+    NULL_CHAR:	.byte -1,-1,-1,-1,-1,-1,-1	# 37 - 255 shall just have the special meaning of clearing the bitmap display
     
     dispAddr:	.word 0x10000000
+    
+    consoleMsg:	.asciiz "SELECT CARDS THROUGH THE CONSOLE"
+    badCardMsg:	.asciiz "PLEASE SELECT DIFFERENT CARDS"
+    bmpPassMsg:	.asciiz "ITS A MATCH"
+    bmpFailMsg: .asciiz "TRY AGAIN"
+    gameEndMsg:	.asciiz "CONGRATULATIONS YOU WIN"
+    cdsLeftMsg:	.asciiz "   CARDS LEFT"
+    clearMsg:	.asciiz "                                "
 
 .text
 
@@ -249,18 +267,18 @@ ClearCell:			# a0 = cell number (0 for top left, 15 for bottom right)
     sw $a0, 4($sp)		# Store the cell number in the stack
     sw $ra, 0($sp)		# Store the return address in the stack
     
-    li $a1, 27			# 27 maps to the null character (a 3x7 black square)
-    li $a2, 27			# Set the second character
-    li $a3, 27			# Set the third character
-    li $v0, 27			# Set the fourth character
-    li $v1, 27			# Set the fifth character
+    li $a1, 37			# 37 maps to the null character (a 3x7 black square)
+    li $a2, 37			# Set the second character
+    li $a3, 37			# Set the third character
+    li $v0, 37			# Set the fourth character
+    li $v1, 37			# Set the fifth character
     jal WriteToCell		# Clear this cell
     
     lw $a0, 4($sp)		# Restore the cell number from the stack
-    li $a1, 27			# 27 maps to the null character (a 3x7 black square)
-    li $a2, 27			# Set the second character
-    li $a3, 27			# Set the third character
-    li $v0, 27			# Set the fourth character
+    li $a1, 37			# 37 maps to the null character (a 3x7 black square)
+    li $a2, 37			# Set the second character
+    li $a3, 37			# Set the third character
+    li $v0, 37			# Set the fourth character
     li $v1, -1			# No fifth character (so that this offsets the digits slightly)
     jal WriteToCell		# Clear this cell
     
@@ -364,6 +382,99 @@ stop_digits:
     lw $ra, 0($sp)		# Restore the return address from the stack
     addi $sp, $sp, 12		# Restore the stack
     jr $ra			# Return
+    
+DrawText:			# a0 = x coordinate; a1 = y coordinate; a2 = char*
+    # int i = 0
+    # char c = a2[i]
+    # while (c)
+    #    if c == 0x20 // space
+    #        DrawNumber(a0 + i*4, a1, 37)
+    #    else
+    #        DrawNumber(a0 + i*4, a1, c - 65 + 11)
+    #    i++
+    #    c = a2[i]
+    addi $sp, $sp, -20		# Give the stack 16 bytes to work with
+    sw $s0, 0($sp)		# Save s0
+    sw $s1, 4($sp)		# Save s1
+    sw $s2, 8($sp)		# Save s2
+    sw $s3, 12($sp)		# Save s3
+    sw $ra, 16($sp)		# Save the return address
+    
+    move $s0, $a0		# Save the original x coordinate
+    move $s1, $a1		# Save the y coordinate
+    move $s2, $a2		# Save the char*
+    li $s3, 0			# i = 0
+    
+    add $t0, $s2, $s3		# Have t0 point to a2[i]
+    lb $t0, 0($t0)		# t0 = a2[i]
+    
+text_while_loop:
+    beqz $t0, end_text_while	# We hit a null character! Exit.
+    
+    sll $a0, $s3, 2		# a0 = i*4
+    add $a0, $a0, $s0		# a0 += x coord
+    move $a1, $s1		# a1 = y coord
+    
+    beq $t0, 0x20, handle_space	# This character is a space. Handle this
+    subi $a2, $t0, 65		# Convert the letter to a number (A=0, B=1)
+    addi $a2, $a2, 11		# Get the bitmap letter index
+    
+    j text_while_inc		# Skip the space code
+
+handle_space:
+    li $a2, 37			# a2 = the empty character
+
+text_while_inc:
+    jal DrawNumber		# Draw a character, whether it is a space or a letter
+
+    addi $s3, $s3, 1		# i++
+    add $t0, $s2, $s3		# Have t0 point to a2[i]
+    lb $t0, 0($t0)		# t0 = a2[i]
+    j text_while_loop		# Repeat the loop
+    
+end_text_while:    
+    lw $ra, 16($sp)		# Restore the return address
+    lw $s3, 12($sp)		# Restore s3
+    lw $s2, 8($sp)		# Restore s2
+    lw $s1, 4($sp)		# Restore s1
+    lw $s0, 0($sp)		# Restore s0
+    addi $sp, $sp, 20		# Restore the stack
+    jr $ra			# Return
+    
+PrintCardsRemaining:		# a0 = # of cards remaining
+    addi $sp, $sp, -8		# Give the stack 8 bytes to work with
+    sw $ra, 0($sp)		# Store the return address in the stack
+    sw $s0, 4($sp)		# Store s0 in the stack
+
+    move $s0, $a0		# Save the # of cards
+    
+    li $a0, 0			# Go to the leftmost unit
+    li $a1, 121			# Go to the topmost unit
+    la $a2, clearMsg		# Fetch the empty string
+    jal DrawText		# Print to screen
+    li $a0, 0			# Go to the leftmost unit
+    li $a1, 121			# Go to the topmost unit
+    la $a2, cdsLeftMsg		# Fetch the cards remaining string
+    jal DrawText		# Print to screen
+    
+    div $t0, $s0, 10		# t0 = tens digit
+    mul $t1, $t0, 10		# Get the right place value
+    sub $s0, $s0, $t1		# Subtract the tens from the number
+    
+    li $a0, 0			# Draw at X=0
+    li $a1, 121			# Draw at Y=121
+    move $a2, $t0		# Load the tens digit
+    jal DrawNumber		# Print the number to the screen
+    
+    li $a0, 4			# Draw at X=4
+    li $a1, 121			# Draw at Y=121
+    move $a2, $s0		# Load the ones digit
+    jal DrawNumber		# Print the number to the screen
+    
+    lw $s0, 4($sp)		# Restore s0
+    lw $ra, 0($sp)		# Restore the return address
+    addi $sp, $sp, 8		# Restore the stack
+    jr $ra			# Return
 
 InitializeGrid:
     # HORIZ: (20,20), (20,40), (20,60), (20,80), (20,100)
@@ -392,6 +503,14 @@ grid_loop:
     addi $s0, $s0, 1		# i++
     slti $t0, $s0, 5		# Is i < 5?
     bnez $t0, grid_loop		# If so, then repeat the loop
+    
+    li $a0, 0			# Go to the leftmost unit
+    li $a1, 0			# Go to the topmost unit
+    la $a2, consoleMsg		# Fetch the string containing user instructions
+    jal DrawText		# Print to screen
+    
+    li $a0, 16			# We have 16 cards remaining
+    jal PrintCardsRemaining	# Print the remaining cards string to the screen
     
     lw $ra, 0($sp)		# Restore the return address from the stack
     lw $s0, 4($sp)		# Pop s0 from the stack

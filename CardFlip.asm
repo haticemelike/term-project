@@ -78,8 +78,17 @@ end_input2:
     
 invalid_inputs:
     la $a0, wrong_card_msg	# Prompt the user to select different cards
-    li $v0, SysPrintString	# Prepare to print a string
-    syscall			# Print the string
+    li $v0, SysPrintString	# Prepare to print a string to the console
+    syscall			# Print the string to the console
+    
+    li $a0, 0			# Go to the leftmost unit on the bitmap display
+    li $a1, 0			# Go to the topmost unit on the bitmap display
+    la $a2, clearMsg		# Get the string to clear the line
+    jal DrawText		# Draw the string to the bitmap display
+    li $a0, 0			# Go to the leftmost unit on the bitmap display
+    li $a1, 0			# Go to the topmost unit on the bitmap display
+    la $a2, badCardMsg		# Load the message to pick different cards
+    jal DrawText		# Draw the string to the bitmap display
     j game_loop			# Have the user pick different cards
 
 valid_inputs:
@@ -93,6 +102,14 @@ valid_inputs:
     la $a0, no_match_msg     	# Print "Not a match."
     li $v0, SysPrintString
     syscall
+    li $a0, 0			# Go to the leftmost unit on the bitmap display
+    li $a1, 0			# Go to the topmost unit on the bitmap display
+    la $a2, clearMsg		# Get the string to clear the line
+    jal DrawText		# Draw the string to the bitmap display
+    li $a0, 0			# Go to the leftmost unit on the bitmap display
+    li $a1, 0			# Go to the topmost unit on the bitmap display
+    la $a2, bmpFailMsg		# Load the fail message
+    jal DrawText		# Draw the string to the bitmap display
     jal Delay                	# Short delay to show the flipped cards
     jal HideCards
     jal UpdateBoard		# Draw board with the hidden cards
@@ -102,6 +119,14 @@ handle_match:
     la $a0, match_msg        	# Print "It's a match!"
     li $v0, SysPrintString
     syscall
+    li $a0, 0			# Go to the leftmost unit on the bitmap display
+    li $a1, 0			# Go to the topmost unit on the bitmap display
+    la $a2, clearMsg		# Get the string to clear the line
+    jal DrawText		# Draw the string to the bitmap display
+    li $a0, 0			# Go to the leftmost unit on the bitmap display
+    li $a1, 0			# Go to the topmost unit on the bitmap display
+    la $a2, bmpPassMsg		# Load the pass message
+    jal DrawText		# Draw the string to the bitmap display
     addi $t0, $t0, 1         	# Increment match counter
     addi $s2, $s2, -2        	# Decrement cards left by 2
     sw $s2, cards_left       	# Update the cards_left variable
@@ -116,6 +141,14 @@ game_end:
     la $a0, all_matched_msg
     li $v0, SysPrintString
     syscall
+    li $a0, 0			# Go to the leftmost unit on the bitmap display
+    li $a1, 0			# Go to the topmost unit on the bitmap display
+    la $a2, clearMsg		# Get the string to clear the line
+    jal DrawText		# Draw the string to the bitmap display
+    li $a0, 0			# Go to the leftmost unit on the bitmap display
+    li $a1, 0			# Go to the topmost unit on the bitmap display
+    la $a2, gameEndMsg		# Load the congratulations message
+    jal DrawText		# Draw the string to the bitmap display
     
     lw $ra, 0($sp)		# Restore the return address from the stack
     addi $sp, $sp, 4		# Restore the stack
