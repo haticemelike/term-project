@@ -1,4 +1,4 @@
-#	CS2340 Term Project - Card "Flipping" Mechanism + Restart Game Method
+#	CS2340 Term Project - Card "Flipping" Mechanism + Exit Game
 #
 #	Author: Hatice Kahraman
 #	Date: 09-25-2024 
@@ -7,8 +7,8 @@
 
 .data
 card_states:    .byte 0:16      # Array to track card states: 0 = hidden, 1 = revealed
-user_prompt1:   .asciiz "Enter the first card letter (A-P) or '.' to restart: "
-user_prompt2:   .asciiz "Enter the second card letter (A-P) or '.' to restart: "
+user_prompt1:   .asciiz "Enter the first card letter (A-P) or '.' to exit: "
+user_prompt2:   .asciiz "Enter the second card letter (A-P) or '.' to exit: "
 wrong_card_msg:	.asciiz "Please select a different pair of cards.\n"
 match_msg:      .asciiz "It's a match!\n"
 no_match_msg:   .asciiz "Not a match.\n"
@@ -40,8 +40,9 @@ game_loop:
     li $v0, SysReadChar		# Expect a char from the keyboard (a cell ID)
     syscall			# Read the char
     
-    lb $t1, restart_char        # Load restart character
-    beq $v0, $t1, restart_game  # If input is '.', restart the game
+    # Exit if the user presses "."
+    li $t0, 46               	# ASCII value for "."
+    beq $v0, $t0, exit_game 	# If "." is pressed, jump to exit_game
     
     blt $v0, 97, upper1		# Did the user input an uppercase or a lowercase letter?
     addi $s0, $v0, -97		# The user entered a lowercase letter. Convert that to a cell index #.
@@ -62,7 +63,10 @@ end_input1:
     
     li $v0, SysReadChar
     syscall
-    beq $v0, $t1, restart_game  # If input is '.', restart the game
+    
+    # Exit if the user presses "."
+    li $t0, 46               	# ASCII value for "."
+    beq $v0, $t0, exit_game  	# If "." is pressed, jump to exit_game
     
     blt $v0, 97, upper2		# Did the user input an uppercase or a lowercase letter?
     addi $s1, $v0, -97		# The user entered a lowercase letter. Convert that to a cell index #.
@@ -164,9 +168,9 @@ game_end:
     addi $sp, $sp, 4		# Restore the stack
     jr $ra                   	# End game and return
 
-restart_game:
-    # Restart the game by jumping to main in TermProject.asm
-    j Main
+exit_game:
+    li $v0, SysExit           # Exit the program
+    syscall                   # Terminate
 
 # Check if the two selected cards match
 CheckMatch:
@@ -239,4 +243,3 @@ delay_loop:
     addi $t0, $t0, -1
     bgtz $t0, delay_loop        # Loop until delay time is exhausted
     jr $ra
-
