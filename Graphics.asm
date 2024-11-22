@@ -55,7 +55,8 @@
     X_CHAR:	.byte 5,5,5,2,5,5,5		# 34
     Y_CHAR:	.byte 5,5,5,2,2,2,2		# 35
     Z_CHAR:	.byte 7,1,1,2,4,4,7		# 36
-    NULL_CHAR:	.byte -1,-1,-1,-1,-1,-1,-1	# 37 - 255 shall just have the special meaning of clearing the bitmap display
+    COLON_CHAR:	.byte 0,2,2,0,2,2,0		# 37
+    NULL_CHAR:	.byte -1,-1,-1,-1,-1,-1,-1	# 38 - 255 shall just have the special meaning of clearing the bitmap display
     
     dispAddr:	.word 0x10000000
     
@@ -65,6 +66,7 @@
     bmpFailMsg: .asciiz "TRY AGAIN"
     gameEndMsg:	.asciiz "CONGRATULATIONS YOU WIN"
     cdsLeftMsg:	.asciiz "   CARDS LEFT"
+    bmpTimeMsg:	.asciiz "ELAPSED TIME: "
     clearMsg:	.asciiz "                                "
 
 .text
@@ -267,18 +269,18 @@ ClearCell:			# a0 = cell number (0 for top left, 15 for bottom right)
     sw $a0, 4($sp)		# Store the cell number in the stack
     sw $ra, 0($sp)		# Store the return address in the stack
     
-    li $a1, 37			# 37 maps to the null character (a 3x7 black square)
-    li $a2, 37			# Set the second character
-    li $a3, 37			# Set the third character
-    li $v0, 37			# Set the fourth character
-    li $v1, 37			# Set the fifth character
+    li $a1, 38			# 38 maps to the null character (a 3x7 black square)
+    li $a2, 38			# Set the second character
+    li $a3, 38			# Set the third character
+    li $v0, 38			# Set the fourth character
+    li $v1, 38			# Set the fifth character
     jal WriteToCell		# Clear this cell
     
     lw $a0, 4($sp)		# Restore the cell number from the stack
-    li $a1, 37			# 37 maps to the null character (a 3x7 black square)
-    li $a2, 37			# Set the second character
-    li $a3, 37			# Set the third character
-    li $v0, 37			# Set the fourth character
+    li $a1, 38			# 38 maps to the null character (a 3x7 black square)
+    li $a2, 38			# Set the second character
+    li $a3, 38			# Set the third character
+    li $v0, 38			# Set the fourth character
     li $v1, -1			# No fifth character (so that this offsets the digits slightly)
     jal WriteToCell		# Clear this cell
     
@@ -388,7 +390,7 @@ DrawText:			# a0 = x coordinate; a1 = y coordinate; a2 = char*
     # char c = a2[i]
     # while (c)
     #    if c == 0x20 // space
-    #        DrawNumber(a0 + i*4, a1, 37)
+    #        DrawNumber(a0 + i*4, a1, 38)
     #    else
     #        DrawNumber(a0 + i*4, a1, c - 65 + 11)
     #    i++
@@ -416,13 +418,18 @@ text_while_loop:
     move $a1, $s1		# a1 = y coord
     
     beq $t0, 0x20, handle_space	# This character is a space. Handle this
+    beq $t0, 0x3A, handle_colon	# This character is a colon. Handle this
     subi $a2, $t0, 65		# Convert the letter to a number (A=0, B=1)
     addi $a2, $a2, 11		# Get the bitmap letter index
     
-    j text_while_inc		# Skip the space code
+    j text_while_inc		# Skip the space code / colon code
 
 handle_space:
-    li $a2, 37			# a2 = the empty character
+    li $a2, 38			# a2 = the empty character
+    j text_while_inc		# Skip the colon code
+    
+handle_colon:
+    li $a2, 37			# a2 = the colon character
 
 text_while_inc:
     jal DrawNumber		# Draw a character, whether it is a space or a letter
@@ -475,6 +482,68 @@ PrintCardsRemaining:		# a0 = # of cards remaining
     lw $ra, 0($sp)		# Restore the return address
     addi $sp, $sp, 8		# Restore the stack
     jr $ra			# Return
+    
+PrintTime:			# a0 = elapsed minutes; a1 = elapsed seconds
+    addi $sp, $sp, -16		# Give the stack 16 bytes to work with
+    sw $ra, 0($sp)		# Store the return address in the stack
+    sw $s0, 4($sp)		# Store s0 in the stack
+    sw $s1, 8($sp)		# Store s1 in the stack
+    sw $s2, 12($sp)		# Store s2 in the stack
+
+    move $s0, $a0		# Save the minutes argument
+    move $s1, $a1		# Save the seconds argument
+    
+    li $a0, 0			# Set the x value to 0
+    li $a1, 113			# Set the y value to 113
+    la $a2, clearMsg		# Fetch the empty string
+    jal DrawText		# Print to screen
+
+    li $a0, 0			# Set the x value to 0
+    li $a1, 113			# Set the y value to 113
+    la $a2, bmpTimeMsg		# Fetch the elapsed time string
+    jal DrawText		# Print to string
+    
+    # Cap the display at 99 mins and 59 sec
+    blt $s0, 99, displayTimeMMSS# Prepare to print the time
+    li $s0, 99			# If the minutes argument exceeds 99, just print 99
+    li $s1, 59			# Because we are past our 99th minute, just leave it as 59 seconds
+    
+displayTimeMMSS:
+    div $s2, $s0, 10		# s2 = s0 / 10 (tens digit of the minutes)
+    li $a0, 56			# Set the x value to 56
+    li $a1, 113			# Set the y value to 113
+    move $a2, $s2		# Print the tens digit of the number of minutes
+    jal DrawNumber		# Write the number to the screen
+    
+    mul $s2, $s2, 10		# Get the tens digit in its proper place value
+    sub $a2, $s0, $s2		# Subtract the tens from the minutes to isolate the ones, and write that number
+    li $a0, 60			# Set the x value to 60
+    li $a1, 113			# Set the y value to 113
+    jal DrawNumber		# Write the number to the screen
+    
+    li $a0, 64			# Set the x value to 64
+    li $a1, 113			# Set the y value to 113
+    li $a2, 37			# Prepare to print the colon character
+    jal DrawNumber		# Write the colon to the screen
+    
+    div $s2, $s1, 10		# s2 = s1 / 10 (tens digit of the seconds)
+    li $a0, 68			# Set the x value to 68
+    li $a1, 113			# Set the y value to 113
+    move $a2, $s2		# Print the tens digit of the number of seconds
+    jal DrawNumber		# Write the number to the screen
+    
+    mul $s2, $s2, 10		# Get the tens digit in its proper place value
+    sub $a2, $s1, $s2		# Subtract the tens from the seconds to isolate the ones, and write that number
+    li $a0, 72			# Set the x value to 72
+    li $a1, 113			# Set the y value to 113
+    jal DrawNumber		# Write the number to the screen
+    
+    lw $s2, 12($sp)		# Restore s2
+    lw $s1, 8($sp)		# Restore s1
+    lw $s0, 4($sp)		# Restore s0
+    lw $ra, 0($sp)		# Restore the return address
+    addi $sp, $sp, 16		# Restore the stack
+    jr $ra			# Return
 
 InitializeGrid:
     # HORIZ: (20,20), (20,40), (20,60), (20,80), (20,100)
@@ -508,9 +577,6 @@ grid_loop:
     li $a1, 0			# Go to the topmost unit
     la $a2, consoleMsg		# Fetch the string containing user instructions
     jal DrawText		# Print to screen
-    
-    li $a0, 16			# We have 16 cards remaining
-    jal PrintCardsRemaining	# Print the remaining cards string to the screen
     
     lw $ra, 0($sp)		# Restore the return address from the stack
     lw $s0, 4($sp)		# Pop s0 from the stack

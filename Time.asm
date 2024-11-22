@@ -27,6 +27,9 @@ InitTimer:
 
 # Update the timer, calculate, and display elapsed time in "MM:SS" format with leading zeros
 UpdateTimer:
+	addi $sp, $sp, -4	# Give the stack 4 bytes to work with
+	sw $ra, 0($sp)		# Store the return address in the stack
+
         li $v0, 30            	# System call 30: Get current time in milliseconds
         syscall
         lw $t0, start_time    	# Load start time
@@ -84,5 +87,11 @@ PrintNewline:
         li $v0, SysPrintString  # Syscall to print string
         la $a0, newline       	# Load newline
         syscall
+        
+        move $a0, $t5		# Load the minutes
+        move $a1, $t6		# Load the seconds
+        jal PrintTime		# Update the bitmap display
 
+	lw $ra, 0($sp)		# Restore the return address
+	addi $sp, $sp, 4	# Restore the stack
         jr $ra                	# Return to caller
