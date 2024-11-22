@@ -66,8 +66,8 @@ end_input1:
     li $v0, SysPrintString	# Prepare to print a string
     syscall			# Print the string
     
-    li $v0, SysReadChar
-    syscall
+    li $v0, SysReadChar		# Anticipate a response from the keyboard
+    syscall			# Await a char from the keyboard
     
     # Exit if the user presses "."
     beq $v0, 46, exit_game  	# If "." is pressed, jump to exit_game
@@ -118,9 +118,10 @@ valid_inputs:
     beq $v0, 1, handle_match  	# If match, go to handle_match
 
     # Not a match
+    jal WrongSound		# Play the sound effect for an incorrect match
     la $a0, no_match_msg     	# Print "Not a match."
-    li $v0, SysPrintString
-    syscall
+    li $v0, SysPrintString	# Set the syscall to print string
+    syscall			# Print the string
     li $a0, 0			# Go to the leftmost unit on the bitmap display
     li $a1, 0			# Go to the topmost unit on the bitmap display
     la $a2, clearMsg		# Get the string to clear the line
@@ -130,14 +131,15 @@ valid_inputs:
     la $a2, bmpFailMsg		# Load the fail message
     jal DrawText		# Draw the string to the bitmap display
     jal Delay                	# Short delay to show the flipped cards
-    jal HideCards
+    jal HideCards		# Flip the cards over
     jal UpdateBoard		# Draw board with the hidden cards
     j game_loop              	# Loop back to play again
 
 handle_match:
+    jal PassSound		# Play the sound effect for a correct match
     la $a0, match_msg        	# Print "It's a match!"
-    li $v0, SysPrintString
-    syscall
+    li $v0, SysPrintString	# Set the syscall to print the string
+    syscall			# Print the string
     li $a0, 0			# Go to the leftmost unit on the bitmap display
     li $a1, 0			# Go to the topmost unit on the bitmap display
     la $a2, clearMsg		# Get the string to clear the line
@@ -151,16 +153,17 @@ handle_match:
     sw $s2, cards_left       	# Update the cards_left variable
 
     # Check if all pairs are matched
-    beqz $s2, game_end
-    j game_loop
+    beqz $s2, game_end		# If there are 0 cards left, then end the game
+    j game_loop			# Otherwise, continue the game
 
 game_end:
+    jal WinSound		# Play the sound effect for having won the game
     jal UpdateBoard           	# Draw the final board
     jal DisplayCardsLeft     	# Display final cards left count (should be 0)
     jal UpdateTimer		# Display elapsed time
-    la $a0, all_matched_msg
-    li $v0, SysPrintString
-    syscall
+    la $a0, all_matched_msg	# Load the string for all cards matched
+    li $v0, SysPrintString	# Load the print string syscall
+    syscall			# Print the string
     li $a0, 0			# Go to the leftmost unit on the bitmap display
     li $a1, 0			# Go to the topmost unit on the bitmap display
     la $a2, clearMsg		# Get the string to clear the line
@@ -208,12 +211,12 @@ CheckMatch:
 
 check_factor_product:
     # Determine which card is the factor card and which is the product card
-    blt $t3, 8, factor_first
+    blt $t3, 8, factor_first	# Numbers less than 8 signify a factor
 
     # Product card is $t3, factor card is $t4
     addi $t5, $t3, -8        	# Adjust product index
     move $t6, $t4            	# Factor index
-    j verify_match
+    j verify_match		# Skip the factor code
 
 factor_first:
     # Factor card is $t3, product card is $t4
@@ -227,42 +230,42 @@ verify_match:
     lw $t8, factor2($t6)     	# Load second factor
 
     # Multiply factors
-    mul $t9, $t7, $t8
+    mul $t9, $t7, $t8		# t9 = factor1*factor2
 
     # Load the product
     sll $t5, $t5, 2          	# Multiply index by 4
-    lw $t0, products($t5)
+    lw $t0, products($t5)	# Load that index's product
 
     # Compare calculated product with stored product
-    beq $t9, $t0, match
+    beq $t9, $t0, match		# Skip if the numbers match
 
 no_match:
     li $v0, 0                	# Set return value to 0 (no match)
-    jr $ra
+    jr $ra			# Return
 
 match:
     li $v0, 1                	# Set return value to 1 (match)
-    jr $ra
+    jr $ra			# Return
 
 # Reveal the selected cards by updating their state
 RevealCards:
     li $t5, 1                   # Set to revealed state
-    sb $t5, card_states($s0)
-    sb $t5, card_states($s1)
-    jr $ra
+    sb $t5, card_states($s0)	# Set card A to be revealed
+    sb $t5, card_states($s1)	# Set card B to be revealed
+    jr $ra			# Return
 
 
 # Hide the selected cards by resetting their state
 HideCards:
     li $t5, 0                   # Set to hidden state
-    sb $t5, card_states($s0)
-    sb $t5, card_states($s1)
-    jr $ra
+    sb $t5, card_states($s0)	# Set card A to be hidden
+    sb $t5, card_states($s1)	# Set card B to be hidden
+    jr $ra			# Return
 
 # Delay function for brief pause
 Delay:
     lw $t0, delay_time          # Load delay time
 delay_loop:
-    addi $t0, $t0, -1
+    addi $t0, $t0, -1		# Decrement the delay counter
     bgtz $t0, delay_loop        # Loop until delay time is exhausted
-    jr $ra
+    jr $ra			# Return

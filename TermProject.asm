@@ -27,3 +27,4 @@ Main:
 .include "CardFlip.asm"
 .include "Counter.asm"
 .include "Time.asm"
+.include "Audio.asm"

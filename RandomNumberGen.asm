@@ -24,27 +24,27 @@ rng_main:
     sw $ra, 0($sp)		# Store the return address to the stack
     
     # Reset boardNums
-    li $t0, 0
-    la $t2, boardNums
+    li $t0, 0			# i = 0
+    la $t2, boardNums		# Have t2 point to boardNums
 boardNum_reset:
-    add $t1, $t2, $t0
-    sb $t0, 0($t1)
+    add $t1, $t2, $t0		# t1 points to boardNums[i]
+    sb $t0, 0($t1)		# boardNums[i] = i
 
-    addi $t0, $t0, 1
-    slti $t1, $t0, 16
-    bnez $t1, boardNum_reset
+    addi $t0, $t0, 1		# i++
+    slti $t1, $t0, 16		# Is i < 16?
+    bnez $t1, boardNum_reset	# If so, then loop
     
     # Set up the random number generator with a seed
     li $a0, 0                   # Pseudorandom generator ID 
     lw $a1, seed                # Load the seed
     li $v0, SysRandInt          # Syscall for setting random seed
-    syscall
+    syscall			# Establish the RNG
 
     # Generate 8 random equations and products
-    jal GenerateRandomEquations
+    jal GenerateRandomEquations	# Call the equation generator
     
     # Shuffle the board
-    jal ShuffleBoard
+    jal ShuffleBoard		# Call the board shuffler
 
     lw $ra, 0($sp)		# Restore the return address from the stack
     addi $sp, $sp, 4		# Pop the stack
@@ -66,7 +66,7 @@ generate_loop:
     # Generate random factor2
     li $v0, SysRandIntRange     # Syscall for generating random number in range
     li $a0, 0                   # Random generator ID
-    syscall
+    syscall			# Get a random number
     addi $a0, $a0, 1            # Adjust range to 1-12
     sw $a0, factor2($t0)        # Store in factor2 array
 
@@ -77,8 +77,8 @@ generate_loop:
     sw $t3, products($t0)       # Store product in products array
 
     # Increment counter and loop for 8 iterations
-    addi $t0, $t0, 4
-    blt $t0, 32, generate_loop
+    addi $t0, $t0, 4		# counter += 4
+    blt $t0, 32, generate_loop	# If counter < 32, repeat
 
     jr $ra                      # Return from function
     

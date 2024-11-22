@@ -16,19 +16,19 @@ DisplayCardsLeft:
     sw $ra, 0($sp)             # Store the return address in the stack
 
     # Print "Cards left: "
-    la $a0, cards_left_msg
+    la $a0, cards_left_msg     # Load the cards left message to a0
     li $v0, SysPrintString     # Syscall to print a string
-    syscall
+    syscall                    # Print the string
 
     # Load and print the number of cards left
     lw $a0, cards_left         # Load the current value of cards_left
     li $v0, SysPrintInt        # Syscall to print an integer
-    syscall
+    syscall                    # Print the string
 
     # Print a newline for better formatting
-    la $a0, newline
+    la $a0, newline            # Load the new line string
     li $v0, SysPrintString     # Syscall to print a newline
-    syscall
+    syscall                    # Print the string
     
     lw $a0, cards_left         # Load the current value of cards_left
     jal PrintCardsRemaining    # Update the bitmap display

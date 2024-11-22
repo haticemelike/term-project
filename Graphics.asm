@@ -618,17 +618,17 @@ print_front:
     syscall
     
     # BITMAP    
-    move $a0, $t0
-    jal ClearCell
-    move $t0, $s0
-    move $a0, $t0
-    addi $a1, $t0, 11
-    li $a2, -1
-    li $a3, -1
-    li $v0, -1
-    li $v1, -1
-    jal WriteToCell
-    move $t0, $s0
+    move $a0, $t0		# Get the cell number
+    jal ClearCell		# Empty out that cell
+    move $t0, $s0		# Get the cell number
+    move $a0, $t0		# The cell argument is the current cell number
+    addi $a1, $t0, 11		# Add the cell number from bitmap character 'A'
+    li $a2, -1			# No second character
+    li $a3, -1			# No third character
+    li $v0, -1			# No fourth character
+    li $v1, -1			# No fifth character
+    jal WriteToCell		# Assign that letter to the cell
+    move $t0, $s0		# Restore the cell number
     
     j drawloop_end             # Skip to end of draw loop
 
@@ -639,50 +639,50 @@ show_equation:
     lw $t6, factor2($t4)       # Load factor2 for the equation
 
     # Print factor1
-    move $a0, $t5
-    li $v0, SysPrintInt
-    syscall
+    move $a0, $t5		# Set the print argument to factor1
+    li $v0, SysPrintInt		# Prepare to print an int
+    syscall			# Print the int
 
     # Print " x "
-    la $a0, multiply_msg
-    li $v0, SysPrintString
-    syscall
+    la $a0, multiply_msg	# Load the multiply message string
+    li $v0, SysPrintString	# Prepare to print a string
+    syscall			# Print the string
 
     # Print factor2
-    move $a0, $t6
-    li $v0, SysPrintInt
-    syscall
+    move $a0, $t6		# Set the print argument to factor2
+    li $v0, SysPrintInt		# Prepare to print an int
+    syscall			# Print the int
     
     # BITMAP
-    move $a0, $t0
-    jal ClearCell
-    move $t0, $s0
-    move $a0, $t0
-    move $a1, $t5
-    move $a2, $t6
-    jal WriteMathToCell
-    move $t0, $s0
+    move $a0, $t0		# Set the cell argument to this cell
+    jal ClearCell		# Empty out the cell
+    move $t0, $s0		# Restore the current cell
+    move $a0, $t0		# Write something to this cell
+    move $a1, $t5		# Write factor1,
+    move $a2, $t6		# And write factor2 as well
+    jal WriteMathToCell		# Display factor1*factor2
+    move $t0, $s0		# Restore the cell number
     
-    j drawloop_end
+    j drawloop_end		# Loop
 
 show_product:
     # Print the product
     sll $t4, $t4, 2            # t4 *= 4 to index product array
     lw $t5, products($t4)      # Load product
 
-    move $a0, $t5
-    li $v0, SysPrintInt
-    syscall
+    move $a0, $t5		# Set the print argument to the product
+    li $v0, SysPrintInt		# Prepare to print an int
+    syscall			# Print the int
     
     # BITMAP
-    move $a0, $t0
-    jal ClearCell
-    move $t0, $s0
-    move $a0, $t0
-    move $a1, $t5
-    li $a2, -1
-    jal WriteMathToCell
-    move $t0, $s0
+    move $a0, $t0		# Get this cell's number
+    jal ClearCell		# Empty out this cell
+    move $t0, $s0		# Restore the cell number
+    move $a0, $t0		# Write to this cell
+    move $a1, $t5		# Write the product,
+    li $a2, -1			# And because we're not multiplying it with anything, this argument is -1
+    jal WriteMathToCell		# Display product
+    move $t0, $s0		# Restore the cell number
 
 drawloop_end:
     # Print vertical bar for separation
