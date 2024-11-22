@@ -575,6 +575,11 @@ grid_loop:
     
     li $a0, 0			# Go to the leftmost unit
     li $a1, 0			# Go to the topmost unit
+    la $a2, clearMsg		# Clear the line of junk from last time
+    jal DrawText		# Print to screen
+    
+    li $a0, 0			# Go to the leftmost unit
+    li $a1, 0			# Go to the topmost unit
     la $a2, consoleMsg		# Fetch the string containing user instructions
     jal DrawText		# Print to screen
     

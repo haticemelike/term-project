@@ -11,7 +11,8 @@
     factor2:     .word 0:8            # Array to hold 8 factor2 values
     products:    .word 0:8            # Array to hold 8 products
     cellPairs:	 .byte 0:16	      # Array to hold the cells which correspond to a factor/product pair. 16 bytes: [factor0,product0,factor1,product1]
-    boardNums:   .byte 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 # These represent cell positions in left-right, top-bottom order
+    #boardNums:   .byte 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 # These represent cell positions in left-right, top-bottom order
+    boardNums:   .byte 0:16           # These represent cell positions in left-right, top-bottom order
     multiply_msg: .asciiz " x "         # Multiply sign string
     newline:     .asciiz "\n"          # Newline character
 
@@ -21,6 +22,17 @@
 rng_main:
     addi $sp, $sp, -4		# Give the stack 4 bytes to work with
     sw $ra, 0($sp)		# Store the return address to the stack
+    
+    # Reset boardNums
+    li $t0, 0
+    la $t2, boardNums
+boardNum_reset:
+    add $t1, $t2, $t0
+    sb $t0, 0($t1)
+
+    addi $t0, $t0, 1
+    slti $t1, $t0, 16
+    bnez $t1, boardNum_reset
     
     # Set up the random number generator with a seed
     li $a0, 0                   # Pseudorandom generator ID 

@@ -7,12 +7,12 @@
 
 .data
 card_states:    .byte 0:16      # Array to track card states: 0 = hidden, 1 = revealed
-user_prompt1:   .asciiz "Enter the first card letter (A-P) or '.' to exit: "
-user_prompt2:   .asciiz "Enter the second card letter (A-P) or '.' to exit: "
+user_prompt1:   .asciiz "Enter the first card letter (A-P) or '.' to exit / '!' to restart: "
+user_prompt2:   .asciiz "Enter the second card letter (A-P) or '.' to exit / '!' to restart: "
 wrong_card_msg:	.asciiz "Please select a different pair of cards.\n"
 match_msg:      .asciiz "It's a match!\n"
 no_match_msg:   .asciiz "Not a match.\n"
-all_matched_msg: .asciiz "Congratulations! All pairs matched!\n"
+all_matched_msg: .asciiz "Congratulations! All pairs matched! Press '!' to play again\n"
 delay_time:     .word 3000000   # Adjust delay time as needed
 cards_left: .word 16  		# Total number of cards
 restart_char: .byte '.'          # Special character for restarting
@@ -23,6 +23,10 @@ restart_char: .byte '.'          # Special character for restarting
 CardFlip_main:
     addi $sp, $sp, -4		# Give the stack 4 bytes to work with
     sw $ra, 0($sp)		# Store the return address to the stack
+    
+    li $t0, 16			# 16 cards
+    la $t1, cards_left		# t1 points to cards_left
+    sw $t0, 0($t1)		# We have 16 cards left
 
     li $t0, 0              	# Initialize matched pairs counter ($t0 - matched_pairs counter)
     lw $s2, cards_left     	# Load total number of cards ($s2 - cards_left counter)
@@ -41,8 +45,9 @@ game_loop:
     syscall			# Read the char
     
     # Exit if the user presses "."
-    li $t0, 46               	# ASCII value for "."
-    beq $v0, $t0, exit_game 	# If "." is pressed, jump to exit_game
+    beq $v0, 46, exit_game 	# If "." is pressed, jump to exit_game
+    # Restart if the user presses "!"
+    beq $v0, 33, restart_game	# If "!" is pressed, jump to restart_game
     
     blt $v0, 97, upper1		# Did the user input an uppercase or a lowercase letter?
     addi $s0, $v0, -97		# The user entered a lowercase letter. Convert that to a cell index #.
@@ -65,8 +70,9 @@ end_input1:
     syscall
     
     # Exit if the user presses "."
-    li $t0, 46               	# ASCII value for "."
-    beq $v0, $t0, exit_game  	# If "." is pressed, jump to exit_game
+    beq $v0, 46, exit_game  	# If "." is pressed, jump to exit_game
+    # Restart if the user presses "!"
+    beq $v0, 33, restart_game	# If "!" is pressed, jump to restart_game
     
     blt $v0, 97, upper2		# Did the user input an uppercase or a lowercase letter?
     addi $s1, $v0, -97		# The user entered a lowercase letter. Convert that to a cell index #.
@@ -164,13 +170,30 @@ game_end:
     la $a2, gameEndMsg		# Load the congratulations message
     jal DrawText		# Draw the string to the bitmap display
     
+    # Does the player want to restart?
+    li $v0, SysReadChar		# Expect a char from the keyboard
+    syscall			# Read the char
+    beq $v0, 33, restart_game	# If "!" is pressed, jump to restart_game
+    
+exit_game:
     lw $ra, 0($sp)		# Restore the return address from the stack
     addi $sp, $sp, 4		# Restore the stack
     jr $ra                   	# End game and return
 
-exit_game:
-    li $v0, SysExit           # Exit the program
-    syscall                   # Terminate
+restart_game:
+    # Clear card_states
+    la $t0, card_states		# Load card_states to t0
+    li $t1, 0			# int i = 0
+    
+card_state_reset:
+    add $t2, $t0, $t1		# Have t2 point to card_states[i]
+    sb $zero, 0($t2)		# card_states[i] = 0
+
+    addi $t1, $t1, 1		# i++
+    slti $t2, $t1, 16		# Is i < 16?
+    bnez $t2, card_state_reset	# Loop if so
+
+    j Main			# Restart the program
 
 # Check if the two selected cards match
 CheckMatch:
